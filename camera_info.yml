@@ -1,0 +1,21 @@
+header: 
+  seq: 39030
+  stamp: 
+    secs: 1764
+    nsecs: 188000000
+  frame_id: "main_camera_optical"
+height: 240
+width: 320
+distortion_model: "plumb_bob"
+D: [0.0, 0.0, 0.0, 0.0, 0.0]
+K: [92.37552065968626, 0.0, 160.5, 0.0, 92.37552065968626, 120.5, 0.0, 0.0, 1.0]
+R: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+P: [92.37552065968626, 0.0, 160.5, -0.0, 0.0, 92.37552065968626, 120.5, 0.0, 0.0, 0.0, 1.0, 0.0]
+binning_x: 0
+binning_y: 0
+roi: 
+  x_offset: 0
+  y_offset: 0
+  height: 0
+  width: 0
+  do_rectify: False
