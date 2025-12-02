@@ -1,3 +1,12 @@
+REQUIREMENTS = '''
+opencv-python==4.8.0
+numpy==1.23.5
+PyYAML
+scipy==1.3.0
+'''
+
+
+CODE = '''
 from pathlib import Path
 import yaml
 import numpy as np
@@ -77,14 +86,6 @@ def get_marker_coordinates_in_aruco_map(
         float(round(p_world[1], 2)),
         float(round(p_world[2], 2)),
     )
+'''
 
-    print(p_world)
-
-#ANSWER = (1.2, 4.5, 0.0)
-
-if __name__ == '__main__':
-    path = "/home/clover/task_K/"
-    img_path = path + "image.png"
-    cam_path = path + "camera_info.yml"
-    trans_path = path + "transform.yml"
-    get_marker_coordinates_in_aruco_map(img_path, cam_path, trans_path)
+ANSWER = (2.08, 7.58, 0.0)
