@@ -1,95 +1,84 @@
-REQUIREMENTS = '''
-opencv-python==4.8.0
-numpy
-PyYAML
-'''
-
-#CODE = '''
 from pathlib import Path
 import yaml
-import rospy
-from sensor_msgs.msg import CameraInfo, Image
-from image_geometry import PinholeCameraModel
-import cv2 as cv
-#import tf2_geometry_msgs  
-#import tf2_ros 
-#from geometry_msgs.msg import PointStamped, Point
 import numpy as np
+import cv2 as cv
 from scipy.spatial.transform import Rotation as R
 
-rospy.init_node("task_K")
+
+def load_camera_info(path: Path):
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
+    K = np.array(data["K"]).reshape(3, 3)
+    return K
 
 
-def find_point(path: Path):
+def load_transform(path: Path):
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
+    t = np.array([
+        data["transform"]["translation"]["x"],
+        data["transform"]["translation"]["y"],
+        data["transform"]["translation"]["z"]
+    ])
+
+    q = [
+        data["transform"]["rotation"]["x"],
+        data["transform"]["rotation"]["y"],
+        data["transform"]["rotation"]["z"],
+        data["transform"]["rotation"]["w"]
+    ]
+
+    R_mat = R.from_quat(q).as_matrix()
+
+    return R_mat, t
+
+
+def find_centroid(path: Path):
     img = cv.imread(str(path))
-    M = cv.moments(img) 
-    if M["m00"] != 0:
-        x = int(M["m10"] / M["m00"])
-        y = int(M["m01"] / M["m00"])
-    return x, y
-
-
-def get_cam_info(path: Path):
-    with open(str(path), "r") as f:
-        data = yaml.safe_load(f)
-
-    cam_info = CameraInfo()
-    cam_info.header.frame_id = data["header"]["frame_id"]
-    cam_info.width = data["width"]
-    cam_info.height = data["height"]
-    cam_info.distortion_model = data["distortion_model"]
-    cam_info.D = data["D"]
-    cam_info.K = data["K"]
-    cam_info.R = data["R"]
-    cam_info.P = data["P"]
-
-    return cam_info
-
-
-def transform(path: Path):
-    with open(str(path), "r") as f:
-        data = yaml.safe_load(f)
-
-    x = data["transform"]["translation"]["x"]
-    y = data["transform"]["translation"]["y"]
-    z = data["transform"]["translation"]["z"]
-
-    qx = data["transform"]["rotation"]["x"]
-    qy = data["transform"]["rotation"]["y"]
-    qz = data["transform"]["rotation"]["z"]
-    qw = data["transform"]["rotation"]["w"]
-
-    T = np.array([x, y, z])
-
-    rot = R.from_quat([qx, qy, qz, qw])
-    R_mat = rot.as_matrix()
-    
-
-    return R_mat, T, z
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    M = cv.moments(gray)
+    cx = M["m10"] / M["m00"]
+    cy = M["m01"] / M["m00"]
+    return cx, cy
 
 
 def get_marker_coordinates_in_aruco_map(
-    image_path: Path, 
-    camera_info: Path, 
+    image_path: Path,
+    camera_info: Path,
     camera_aruco_map_transform: Path
 ) -> tuple[float, float, float]:
-    global cords
-    camera_info = get_cam_info(camera_info)
-    cam = PinholeCameraModel()
-    cam.fromCameraInfo(camera_info)
 
-    x, y = find_point(image_path)
-    ray = cam.projectPixelTo3dRay((x, y))
+    cx, cy = find_centroid(image_path)
+    K = load_camera_info(camera_info)
+    R_cam, t_cam = load_transform(camera_aruco_map_transform)
 
-    R_mat, T, z = transform(camera_aruco_map_transform)
-    point_cam = np.array(ray) * z
+    # луч
+    fx = K[0, 0]
+    fy = K[1, 1]
+    cx0 = K[0, 2]
+    cy0 = K[1, 2]
 
-    point = R_mat @ point_cam + T
+    x = (cx - cx0) / fx
+    y = (cy - cy0) / fy
+    ray = np.array([x, y, 1.0])
 
-    print(tuple(point.tolist()))
+    # камера находится на высоте t_cam[2]
+    Z_cam = t_cam[2]
 
-    return tuple(point.tolist())
-#'''
+    # точка в координатах камеры при Z_world = 0
+    s = -Z_cam / (R_cam[2] @ ray)
+    p_cam = ray * s
+
+    # мировые координаты
+    p_world = R_cam @ p_cam + t_cam
+
+    return (
+        float(round(p_world[0], 2)),
+        float(round(p_world[1], 2)),
+        float(round(p_world[2], 2)),
+    )
+
+    print(p_world)
 
 #ANSWER = (1.2, 4.5, 0.0)
 
